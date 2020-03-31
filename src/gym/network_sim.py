@@ -27,8 +27,8 @@ import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-from common import sender_obs, config
-from common.simple_arg_parse import arg_or_default
+from src.common import sender_obs, config
+from src.common.simple_arg_parse import arg_or_default
 
 MAX_CWND = 5000
 MIN_CWND = 4
@@ -227,6 +227,7 @@ class Sender():
         self.cwnd = cwnd
 
     _next_id = 1
+    @staticmethod
     def _get_next_id():
         result = Sender._next_id
         Sender._next_id += 1
@@ -404,15 +405,15 @@ class SimulatedNetworkEnv(gym.Env):
         return sender_obs
 
     def step(self, actions):
-        #print("Actions: %s" % str(actions))
+        # print("Actions: %s" % str(actions))
         #print(actions)
         for i in range(0, 1):#len(actions)):
-            #print("Updating rate for sender %d" % i)
+            # print("Updating rate for sender %d" % i)
             action = actions
             self.senders[i].apply_rate_delta(action[0])
             if USE_CWND:
                 self.senders[i].apply_cwnd_delta(action[1])
-        #print("Running for %fs" % self.run_dur)
+        # print("Running for %fs" % self.run_dur)
         reward = self.net.run_for_dur(self.run_dur)
         for sender in self.senders:
             sender.record_run()
@@ -495,6 +496,8 @@ class SimulatedNetworkEnv(gym.Env):
         with open(filename, 'w') as f:
             json.dump(self.event_record, f, indent=4)
 
-register(id='PccNs-v0', entry_point='network_sim:SimulatedNetworkEnv')
-#env = SimulatedNetworkEnv()
+
+if 'PccNs-v0' not in gym.envs.registry.env_specs:
+    register(id='PccNs-v0', entry_point='network_sim:SimulatedNetworkEnv')
+# env = SimulatedNetworkEnv()
 #env.step([1.0])
