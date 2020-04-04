@@ -55,7 +55,7 @@ gamma = arg_or_default("--gamma", default=0.99)
 print("gamma = %f" % gamma)
 model = PPO1(MyMlpPolicy, env, verbose=1, schedule='constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
 
-for i in range(0, 1):
+for i in range(0, 6):
     with model.graph.as_default():
         saver = tf.compat.v1.train.Saver()
         # saver.save(training_sess, "./pcc_model_%d.ckpt" % i)

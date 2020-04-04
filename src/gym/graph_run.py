@@ -18,7 +18,7 @@ import numpy as np
 import sys
 
 if (not (len(sys.argv) == 2)) or (sys.argv[1] == "-h") or (sys.argv[1] == "--help"):
-    print("usage: python3 graph_run.py <pcc_env_log_filename.json>")
+    print("usage: python3 graph_run.py <pcc_env_log_run_filename.json>")
     exit(0)
 
 filename = sys.argv[1]

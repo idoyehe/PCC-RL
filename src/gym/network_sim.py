@@ -345,7 +345,7 @@ class Sender():
 class SimulatedNetworkEnv(gym.Env):
     
     def __init__(self,
-                 history_len=arg_or_default("--history-len", default=10),
+                 history_len=arg_or_default("--history-len", default=3),
                  features=arg_or_default("--input-features",
                     default="sent latency inflation,"
                           + "latency ratio,"
