@@ -16,7 +16,6 @@ import gym
 import src.gym.network_sim
 import tensorflow as tf
 
-from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.policies import FeedForwardPolicy
 from stable_baselines import PPO1
 import os
@@ -38,6 +37,12 @@ print("Architecture is: %s" % str(arch))
 
 training_sess = None
 
+env = gym.make('PccNs-v0')
+# env = gym.make('CartPole-v0')
+
+gamma = arg_or_default("--gamma", default=0.99)
+print("gamma = %f" % gamma)
+
 
 class MyMlpPolicy(FeedForwardPolicy):
 
@@ -48,17 +53,12 @@ class MyMlpPolicy(FeedForwardPolicy):
         training_sess = sess
 
 
-env = gym.make('PccNs-v0')
-# env = gym.make('CartPole-v0')
-
-gamma = arg_or_default("--gamma", default=0.99)
-print("gamma = %f" % gamma)
 model = PPO1(MyMlpPolicy, env, verbose=1, schedule='constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
 
 for i in range(0, 6):
-    with model.graph.as_default():
-        saver = tf.compat.v1.train.Saver()
-        # saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
+    # with model.graph.as_default():
+    #     saver = tf.compat.v1.train.Saver()
+    #     saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
     model.learn(total_timesteps=(1600 * 410))
 
 ##

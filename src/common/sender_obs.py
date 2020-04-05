@@ -14,6 +14,7 @@
 
 import numpy as np
 
+
 # The monitor interval class used to pass data from the PCC subsystem to
 # the machine learning module.
 #
@@ -53,6 +54,7 @@ class SenderMonitorInterval():
     def as_array(self, features):
         return np.array([self.get(f) / SenderMonitorIntervalMetric.get_by_name(f).scale for f in features])
 
+
 class SenderHistory():
     def __init__(self, length, features, sender_id):
         self.features = features
@@ -72,6 +74,7 @@ class SenderHistory():
         arrays = np.array(arrays).flatten()
         return arrays
 
+
 class SenderMonitorIntervalMetric():
     _all_metrics = {}
 
@@ -86,26 +89,39 @@ class SenderMonitorIntervalMetric():
     def eval(self, mi):
         return self.func(mi)
 
+    @staticmethod
     def eval_by_name(name, mi):
         return SenderMonitorIntervalMetric._all_metrics[name].eval(mi)
 
+    @staticmethod
     def get_by_name(name):
         return SenderMonitorIntervalMetric._all_metrics[name]
 
+
 def get_min_obs_vector(feature_names):
+    """
+    :param feature_names: features that required
+    :return: the minimum value for each feature
+    """
     print("Getting min obs for %s" % feature_names)
     result = []
     for feature_name in feature_names:
         feature = SenderMonitorIntervalMetric.get_by_name(feature_name)
         result.append(feature.min_val)
-    return np.array(result) 
+    return np.array(result)
+
 
 def get_max_obs_vector(feature_names):
+    """
+    :param feature_names: features that required
+    :return: the maximum value for each feature
+    """
     result = []
     for feature_name in feature_names:
         feature = SenderMonitorIntervalMetric.get_by_name(feature_name)
         result.append(feature.max_val)
-    return np.array(result) 
+    return np.array(result)
+
 
 def _mi_metric_recv_rate(mi):
     dur = mi.get("recv dur")
@@ -113,13 +129,16 @@ def _mi_metric_recv_rate(mi):
         return 8.0 * (mi.bytes_acked - mi.packet_size) / dur
     return 0.0
 
+
 def _mi_metric_recv_dur(mi):
     return mi.recv_end - mi.recv_start
+
 
 def _mi_metric_avg_latency(mi):
     if len(mi.rtt_samples) > 0:
         return np.mean(mi.rtt_samples)
     return 0.0
+
 
 def _mi_metric_send_rate(mi):
     dur = mi.get("send dur")
@@ -127,19 +146,23 @@ def _mi_metric_send_rate(mi):
         return 8.0 * mi.bytes_sent / dur
     return 0.0
 
+
 def _mi_metric_send_dur(mi):
     return mi.send_end - mi.send_start
+
 
 def _mi_metric_loss_ratio(mi):
     if mi.bytes_lost + mi.bytes_acked > 0:
         return mi.bytes_lost / (mi.bytes_lost + mi.bytes_acked)
     return 0.0
 
+
 def _mi_metric_latency_increase(mi):
     half = int(len(mi.rtt_samples) / 2)
     if half >= 1:
         return np.mean(mi.rtt_samples[half:]) - np.mean(mi.rtt_samples[:half])
     return 0.0
+
 
 def _mi_metric_ack_latency_inflation(mi):
     dur = mi.get("recv dur")
@@ -148,6 +171,7 @@ def _mi_metric_ack_latency_inflation(mi):
         return latency_increase / dur
     return 0.0
 
+
 def _mi_metric_sent_latency_inflation(mi):
     dur = mi.get("send dur")
     latency_increase = mi.get("latency increase")
@@ -155,7 +179,10 @@ def _mi_metric_sent_latency_inflation(mi):
         return latency_increase / dur
     return 0.0
 
+
 _conn_min_latencies = {}
+
+
 def _mi_metric_conn_min_latency(mi):
     latency = mi.get("avg latency")
     if mi.sender_id in _conn_min_latencies.keys():
@@ -174,8 +201,8 @@ def _mi_metric_conn_min_latency(mi):
             return latency
         else:
             return 0.0
-        
-    
+
+
 def _mi_metric_send_ratio(mi):
     thpt = mi.get("recv rate")
     send_rate = mi.get("send rate")
@@ -183,12 +210,14 @@ def _mi_metric_send_ratio(mi):
         return send_rate / thpt
     return 1.0
 
+
 def _mi_metric_latency_ratio(mi):
     min_lat = mi.get("conn min latency")
     cur_lat = mi.get("avg latency")
     if min_lat > 0.0:
         return cur_lat / min_lat
     return 1.0
+
 
 SENDER_MI_METRICS = [
     SenderMonitorIntervalMetric("send rate", _mi_metric_send_rate, 0.0, 1e9, 1e7),
@@ -204,5 +233,3 @@ SENDER_MI_METRICS = [
     SenderMonitorIntervalMetric("latency ratio", _mi_metric_latency_ratio, 1.0, 10000.0),
     SenderMonitorIntervalMetric("send ratio", _mi_metric_send_ratio, 0.0, 1000.0)
 ]
-
-

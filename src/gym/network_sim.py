@@ -18,15 +18,15 @@ from gym.utils import seeding
 from gym.envs.registration import register
 import numpy as np
 import heapq
-import time
 import random
 import json
 import os
 import sys
 import inspect
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0,parentdir) 
+sys.path.insert(0, parentdir)
 from src.common import sender_obs, config
 from src.common.simple_arg_parse import arg_or_default
 
@@ -53,12 +53,13 @@ MAX_LATENCY_NOISE = 1.1
 
 USE_CWND = False
 
+
 class Link():
 
     def __init__(self, bandwidth, delay, queue_size, loss_rate):
         self.bw = float(bandwidth)
-        self.dl = delay
-        self.lr = loss_rate
+        self.delay = delay
+        self.loss_rate = loss_rate
         self.queue_delay = 0.0
         self.queue_delay_update_time = 0.0
         self.max_queue_delay = queue_size / self.bw
@@ -67,26 +68,27 @@ class Link():
         return max(0.0, self.queue_delay - (event_time - self.queue_delay_update_time))
 
     def get_cur_latency(self, event_time):
-        return self.dl + self.get_cur_queue_delay(event_time)
+        return self.delay + self.get_cur_queue_delay(event_time)
 
     def packet_enters_link(self, event_time):
-        if (random.random() < self.lr):
+        if (random.random() < self.loss_rate):  # random loss
+            # print("\tRandom Drop!")
             return False
         self.queue_delay = self.get_cur_queue_delay(event_time)
         self.queue_delay_update_time = event_time
         extra_delay = 1.0 / self.bw
-        #print("Extra delay: %f, Current delay: %f, Max delay: %f" % (extra_delay, self.queue_delay, self.max_queue_delay))
+        # print("Extra delay: %f, Current delay: %f, Max delay: %f" % (extra_delay, self.queue_delay, self.max_queue_delay))
         if extra_delay + self.queue_delay > self.max_queue_delay:
-            #print("\tDrop!")
+            # print("\tDrop!")
             return False
         self.queue_delay += extra_delay
-        #print("\tNew delay = %f" % self.queue_delay)
+        # print("\tNew delay = %f" % self.queue_delay)
         return True
 
     def print_debug(self):
         print("Link:")
         print("Bandwidth: %f" % self.bw)
-        print("Delay: %f" % self.dl)
+        print("Delay: %f" % self.delay)
         print("Queue Delay: %f" % self.queue_delay)
         print("Max Queue Delay: %f" % self.max_queue_delay)
         print("One Packet Queue Delay: %f" % (1.0 / self.bw))
@@ -95,8 +97,9 @@ class Link():
         self.queue_delay = 0.0
         self.queue_delay_update_time = 0.0
 
+
 class Network():
-    
+
     def __init__(self, senders, links):
         self.q = []
         self.cur_time = 0.0
@@ -108,7 +111,7 @@ class Network():
         for sender in self.senders:
             sender.register_network(self)
             sender.reset_obs()
-            heapq.heappush(self.q, (1.0 / sender.rate, sender, EVENT_TYPE_SEND, 0, 0.0, False)) 
+            heapq.heappush(self.q, (1.0 / sender.rate, sender, EVENT_TYPE_SEND, 0, 0.0, False))
 
     def reset(self):
         self.cur_time = 0.0
@@ -127,7 +130,7 @@ class Network():
 
         while self.cur_time < end_time:
             event_time, sender, event_type, next_hop, cur_latency, dropped = heapq.heappop(self.q)
-            #print("Got event %s, to link %d, latency %f at time %f" % (event_type, next_hop, cur_latency, event_time))
+            # print("Got event %s, to link %d, latency %f at time %f" % (event_type, next_hop, cur_latency, event_time))
             self.cur_time = event_time
             new_event_time = event_time
             new_event_type = event_type
@@ -140,10 +143,10 @@ class Network():
                 if next_hop == len(sender.path):
                     if dropped:
                         sender.on_packet_lost()
-                        #print("Packet lost at time %f" % self.cur_time)
+                        # print("Packet lost at time %f" % self.cur_time)
                     else:
                         sender.on_packet_acked(cur_latency)
-                        #print("Packet acked at time %f" % self.cur_time)
+                        # print("Packet acked at time %f" % self.cur_time)
                 else:
                     new_next_hop = next_hop + 1
                     link_latency = sender.path[next_hop].get_cur_latency(self.cur_time)
@@ -154,26 +157,26 @@ class Network():
                     push_new_event = True
             if event_type == EVENT_TYPE_SEND:
                 if next_hop == 0:
-                    #print("Packet sent at time %f" % self.cur_time)
+                    # print("Packet sent at time %f" % self.cur_time)
                     if sender.can_send_packet():
                         sender.on_packet_sent()
                         push_new_event = True
                     heapq.heappush(self.q, (self.cur_time + (1.0 / sender.rate), sender, EVENT_TYPE_SEND, 0, 0.0, False))
-                
+
                 else:
                     push_new_event = True
 
                 if next_hop == sender.dest:
                     new_event_type = EVENT_TYPE_ACK
                 new_next_hop = next_hop + 1
-                
+
                 link_latency = sender.path[next_hop].get_cur_latency(self.cur_time)
                 if USE_LATENCY_NOISE:
                     link_latency *= random.uniform(1.0, MAX_LATENCY_NOISE)
                 new_latency += link_latency
                 new_event_time += link_latency
                 new_dropped = not sender.path[next_hop].packet_enters_link(self.cur_time)
-                   
+
             if push_new_event:
                 heapq.heappush(self.q, (new_event_time, sender, new_event_type, new_next_hop, new_latency, new_dropped))
 
@@ -181,32 +184,33 @@ class Network():
         throughput = sender_mi.get("recv rate")
         latency = sender_mi.get("avg latency")
         loss = sender_mi.get("loss ratio")
-        bw_cutoff = self.links[0].bw * 0.8
-        lat_cutoff = 2.0 * self.links[0].dl * 1.5
-        loss_cutoff = 2.0 * self.links[0].lr * 1.5
-        #print("thpt %f, bw %f" % (throughput, bw_cutoff))
-        #reward = 0 if (loss > 0.1 or throughput < bw_cutoff or latency > lat_cutoff or loss > loss_cutoff) else 1 #
-        
+        # bw_cutoff = self.links[0].bw * 0.8
+        # lat_cutoff = 2.0 * self.links[0].delay * 1.5
+        # loss_cutoff = 2.0 * self.links[0].loss_rate * 1.5
+        # print("thpt %f, bw %f" % (throughput, bw_cutoff))
+        # reward = 0 if (loss > 0.1 or throughput < bw_cutoff or latency > lat_cutoff or loss > loss_cutoff) else 1 #
+
         # Super high throughput
-        #reward = REWARD_SCALE * (20.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
-        
-        # Very high thpt
+        # reward = REWARD_SCALE * (20.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
+
+        # Very high throughput
         reward = (10.0 * throughput / (8 * BYTES_PER_PACKET) - 1e3 * latency - 2e3 * loss)
-        
-        # High thpt
-        #reward = REWARD_SCALE * (5.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
-        
+
+        # High throughput
+        # reward = REWARD_SCALE * (5.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
+
         # Low latency
-        #reward = REWARD_SCALE * (2.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
-        #if reward > 857:
-        #print("Reward = %f, thpt = %f, lat = %f, loss = %f" % (reward, throughput, latency, loss))
-        
-        #reward = (throughput / RATE_OBS_SCALE) * np.exp(-1 * (LATENCY_PENALTY * latency / LAT_OBS_SCALE + LOSS_PENALTY * loss))
+        # reward = REWARD_SCALE * (2.0 * throughput / RATE_OBS_SCALE - 1e3 * latency / LAT_OBS_SCALE - 2e3 * loss)
+        # if reward > 857:
+        # print("Reward = %f, thpt = %f, lat = %f, loss = %f" % (reward, throughput, latency, loss))
+
+        # reward = (throughput / RATE_OBS_SCALE) * np.exp(-1 * (LATENCY_PENALTY * latency / LAT_OBS_SCALE + LOSS_PENALTY * loss))
         return reward * REWARD_SCALE
 
+
 class Sender():
-    
-    def __init__(self, rate, path, dest, features, cwnd=25, history_len=10):
+
+    def __init__(self, rate, path, dest, features, cwnd=25, history_len=3):
         self.id = Sender._get_next_id()
         self.starting_rate = rate
         self.rate = rate
@@ -227,6 +231,7 @@ class Sender():
         self.cwnd = cwnd
 
     _next_id = 1
+
     @staticmethod
     def _get_next_id():
         result = Sender._next_id
@@ -234,8 +239,12 @@ class Sender():
         return result
 
     def apply_rate_delta(self, delta):
+        """
+        :param delta: the last action a_t
+        :return: change the send rate
+        """
         delta *= config.DELTA_SCALE
-        #print("Applying delta %f" % delta)
+        # print("Applying delta %f" % delta)
         if delta >= 0.0:
             self.set_rate(self.rate * (1.0 + delta))
         else:
@@ -243,13 +252,16 @@ class Sender():
 
     def apply_cwnd_delta(self, delta):
         delta *= config.DELTA_SCALE
-        #print("Applying delta %f" % delta)
+        # print("Applying delta %f" % delta)
         if delta >= 0.0:
             self.set_cwnd(self.cwnd * (1.0 + delta))
         else:
             self.set_cwnd(self.cwnd / (1.0 - delta))
 
     def can_send_packet(self):
+        """
+        :return: False if and only if CWND size is exhausted
+        """
         if USE_CWND:
             return int(self.bytes_in_flight) / BYTES_PER_PACKET < self.cwnd
         else:
@@ -265,7 +277,7 @@ class Sender():
     def on_packet_acked(self, rtt):
         self.acked += 1
         self.rtt_samples.append(rtt)
-        if (self.min_latency is None) or (rtt < self.min_latency):
+        if (self.min_latency is None) or (rtt < self.min_latency):  # update min_latency
             self.min_latency = rtt
         self.bytes_in_flight -= BYTES_PER_PACKET
 
@@ -274,8 +286,12 @@ class Sender():
         self.bytes_in_flight -= BYTES_PER_PACKET
 
     def set_rate(self, new_rate):
+        """
+        :param new_rate: set new sending rate between [MIN_RATE,MAX_RATE]
+        :return:
+        """
         self.rate = new_rate
-        #print("Attempt to set new rate to %f (min %f, max %f)" % (new_rate, MIN_RATE, MAX_RATE))
+        # print("Attempt to set new rate to %f (min %f, max %f)" % (new_rate, MIN_RATE, MAX_RATE))
         if self.rate > MAX_RATE:
             self.rate = MAX_RATE
         if self.rate < MIN_RATE:
@@ -283,7 +299,7 @@ class Sender():
 
     def set_cwnd(self, new_cwnd):
         self.cwnd = int(new_cwnd)
-        #print("Attempt to set new rate to %f (min %f, max %f)" % (new_rate, MIN_RATE, MAX_RATE))
+        # print("Attempt to set new rate to %f (min %f, max %f)" % (new_rate, MIN_RATE, MAX_RATE))
         if self.cwnd > MAX_CWND:
             self.cwnd = MAX_CWND
         if self.cwnd < MIN_CWND:
@@ -297,12 +313,15 @@ class Sender():
         return self.history.as_array()
 
     def get_run_data(self):
+        """
+        :return: creating record of the current MI
+        """
         obs_end_time = self.net.get_cur_time()
-        
-        #obs_dur = obs_end_time - self.obs_start_time
-        #print("Got %d acks in %f seconds" % (self.acked, obs_dur))
-        #print("Sent %d packets in %f seconds" % (self.sent, obs_dur))
-        #print("self.rate = %f" % self.rate)
+
+        # obs_dur = obs_end_time - self.obs_start_time
+        # print("Got %d acks in %f seconds" % (self.acked, obs_dur))
+        # print("Sent %d packets in %f seconds" % (self.sent, obs_dur))
+        # print("self.rate = %f" % self.rate)
 
         return sender_obs.SenderMonitorInterval(
             self.id,
@@ -334,7 +353,7 @@ class Sender():
         print("Min Latency: %s" % str(self.min_latency))
 
     def reset(self):
-        #print("Resetting sender!")
+        # print("Resetting sender!")
         self.rate = self.starting_rate
         self.bytes_in_flight = 0
         self.min_latency = None
@@ -342,14 +361,15 @@ class Sender():
         self.history = sender_obs.SenderHistory(self.history_len,
                                                 self.features, self.id)
 
+
 class SimulatedNetworkEnv(gym.Env):
-    
+
     def __init__(self,
                  history_len=arg_or_default("--history-len", default=3),
                  features=arg_or_default("--input-features",
-                    default="sent latency inflation,"
-                          + "latency ratio,"
-                          + "send ratio")):
+                                         default="sent latency inflation,"
+                                                 + "latency ratio,"
+                                                 + "send ratio")):
         self.viewer = None
         self.rand = None
 
@@ -364,7 +384,7 @@ class SimulatedNetworkEnv(gym.Env):
 
         self.links = None
         self.senders = None
-        self.create_new_links_and_senders()
+        self.create_new_links_and_senders()  # creating network topology
         self.net = Network(self.senders, self.links)
         self.run_dur = None
         self.run_period = 0.1
@@ -378,10 +398,9 @@ class SimulatedNetworkEnv(gym.Env):
             self.action_space = spaces.Box(np.array([-1e12, -1e12]), np.array([1e12, 1e12]), dtype=np.float32)
         else:
             self.action_space = spaces.Box(np.array([-1e12]), np.array([1e12]), dtype=np.float32)
-                   
 
         self.observation_space = None
-        use_only_scale_free = True
+
         single_obs_min_vec = sender_obs.get_min_obs_vector(self.features)
         single_obs_max_vec = sender_obs.get_max_obs_vector(self.features)
         self.observation_space = spaces.Box(np.tile(single_obs_min_vec, self.history_len),
@@ -391,7 +410,7 @@ class SimulatedNetworkEnv(gym.Env):
         self.reward_sum = 0.0
         self.reward_ewma = 0.0
 
-        self.event_record = {"Events":[]}
+        self.event_record = {"Events": []}
         self.episodes_run = -1
 
     def seed(self, seed=None):
@@ -400,14 +419,14 @@ class SimulatedNetworkEnv(gym.Env):
 
     def _get_all_sender_obs(self):
         sender_obs = self.senders[0].get_obs()
-        sender_obs = np.array(sender_obs).reshape(-1,)
-        #print(sender_obs)
+        sender_obs = np.array(sender_obs).reshape(-1, )
+        # print(sender_obs)
         return sender_obs
 
     def step(self, actions):
         # print("Actions: %s" % str(actions))
-        #print(actions)
-        for i in range(0, 1):#len(actions)):
+        # print(actions)
+        for i in range(0, 1):  # len(actions)):
             # print("Updating rate for sender %d" % i)
             action = actions
             self.senders[i].apply_rate_delta(action[0])
@@ -424,7 +443,7 @@ class SimulatedNetworkEnv(gym.Env):
         event["Name"] = "Step"
         event["Time"] = self.steps_taken
         event["Reward"] = reward
-        #event["Target Rate"] = sender_mi.target_rate
+        # event["Target Rate"] = sender_mi.target_rate
         event["Send Rate"] = sender_mi.get("send rate")
         event["Throughput"] = sender_mi.get("recv rate")
         event["Latency"] = sender_mi.get("avg latency")
@@ -432,12 +451,12 @@ class SimulatedNetworkEnv(gym.Env):
         event["Latency Inflation"] = sender_mi.get("sent latency inflation")
         event["Latency Ratio"] = sender_mi.get("latency ratio")
         event["Send Ratio"] = sender_mi.get("send ratio")
-        #event["Cwnd"] = sender_mi.cwnd
-        #event["Cwnd Used"] = sender_mi.cwnd_used
+        # event["Cwnd"] = sender_mi.cwnd
+        # event["Cwnd Used"] = sender_mi.cwnd_used
         self.event_record["Events"].append(event)
         if event["Latency"] > 0.0:
             self.run_dur = 0.5 * sender_mi.get("avg latency")
-        #print("Sender obs: %s" % sender_obs)
+        # print("Sender obs: %s" % sender_obs)
 
         should_stop = False
 
@@ -453,18 +472,20 @@ class SimulatedNetworkEnv(gym.Env):
             sender.print_debug()
 
     def create_new_links_and_senders(self):
-        bw    = random.uniform(self.min_bw, self.max_bw)
-        lat   = random.uniform(self.min_lat, self.max_lat)
+        bw = random.uniform(self.min_bw, self.max_bw)
+        lat = random.uniform(self.min_lat, self.max_lat)
         queue = 1 + int(np.exp(random.uniform(self.min_queue, self.max_queue)))
-        loss  = random.uniform(self.min_loss, self.max_loss)
-        #bw    = 200
-        #lat   = 0.03
-        #queue = 5
-        #loss  = 0.00
+        loss = random.uniform(self.min_loss, self.max_loss)
+        # bw    = 200
+        # lat   = 0.03
+        # queue = 5
+        # loss  = 0.00
         self.links = [Link(bw, lat, queue, loss), Link(bw, lat, queue, loss)]
-        #self.senders = [Sender(0.3 * bw, [self.links[0], self.links[1]], 0, self.history_len)]
-        #self.senders = [Sender(random.uniform(0.2, 0.7) * bw, [self.links[0], self.links[1]], 0, self.history_len)]
-        self.senders = [Sender(random.uniform(0.3, 1.5) * bw, [self.links[0], self.links[1]], 0, self.features, history_len=self.history_len)]
+        # self.senders = [Sender(0.3 * bw, [self.links[0], self.links[1]], 0, self.history_len)]
+        # self.senders = [Sender(random.uniform(0.2, 0.7) * bw, [self.links[0], self.links[1]], 0, self.history_len)]
+        sender_rate = random.uniform(0.3, 1.5) * bw
+        self.senders = [
+            Sender(sender_rate, [self.links[0], self.links[1]], 0, self.features, history_len=self.history_len)]
         self.run_dur = 3 * lat
 
     def reset(self):
@@ -475,7 +496,7 @@ class SimulatedNetworkEnv(gym.Env):
         self.episodes_run += 1
         if self.episodes_run > 0 and self.episodes_run % 100 == 0:
             self.dump_events_to_file("pcc_env_log_run_%d.json" % self.episodes_run)
-        self.event_record = {"Events":[]}
+        self.event_record = {"Events": []}
         self.net.run_for_dur(self.run_dur)
         self.net.run_for_dur(self.run_dur)
         self.reward_ewma *= 0.99
@@ -500,4 +521,4 @@ class SimulatedNetworkEnv(gym.Env):
 if 'PccNs-v0' not in gym.envs.registry.env_specs:
     register(id='PccNs-v0', entry_point='network_sim:SimulatedNetworkEnv')
 # env = SimulatedNetworkEnv()
-#env.step([1.0])
+# env.step([1.0])
