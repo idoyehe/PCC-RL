@@ -26,7 +26,7 @@ sys.path.insert(0, grandparentdir)
 from src.common import sender_obs
 from src.common.simple_arg_parse import arg_or_default
 
-from .loaded_agent import LoadedModelAgent
+from loaded_agent import LoadedModelAgent
 
 if not hasattr(sys, 'argv'):
     sys.argv = ['']
@@ -41,7 +41,7 @@ RESET_RATE_MAX = 100.0
 RESET_RATE_MIN = 6.0
 RESET_RATE_MAX = 6.0
 
-MODEL_PATH = arg_or_default("--model-path", "/tmp/")
+MODEL_PATH = arg_or_default("--model-path", "/home/idoye/PycharmProjects/PCC-RL/icml_paper_model")
 
 for arg in sys.argv:
     arg_str = "NULL"
@@ -177,3 +177,5 @@ def get_rate(flow_id):
 
 def init(flow_id):
     driver = PccGymDriver(flow_id)
+
+PccGymDriver(0)

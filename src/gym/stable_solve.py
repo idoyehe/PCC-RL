@@ -76,7 +76,7 @@ with model.graph.as_default():
     act = pol.deterministic_action
     sampled_act = pol.action
 
-    obs_input = tf.saved_model.utils.build_tensor_info(obs_ph)
+    obs_input = tf.compat.v1.saved_model.utils.build_tensor_info(obs_ph)
     outputs_tensor_info = tf.saved_model.utils.build_tensor_info(act)
     stochastic_act_tensor_info = tf.saved_model.utils.build_tensor_info(sampled_act)
     signature = tf.compat.v1.saved_model.signature_def_utils.build_signature_def(

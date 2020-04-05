@@ -31,8 +31,8 @@ parentdir = os.path.dirname(currentdir)
 grandparentdir = os.path.dirname(parentdir)
 sys.path.insert(0,parentdir) 
 sys.path.insert(0,grandparentdir) 
-from common.simple_arg_parse import arg_or_default
-from common import sender_obs
+from src.common.simple_arg_parse import arg_or_default
+from src.common import sender_obs
 
 RESET_INTERVAL = 400
 
@@ -59,7 +59,7 @@ class ShimNetworkEnv(gym.Env):
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setblocking(1)
-        self.sock.bind(("localhost", 9787))
+        self.sock.bind(("localhost", 9000))
 
         self.conn = None
         self.conn_addr = None

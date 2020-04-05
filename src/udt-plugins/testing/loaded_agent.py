@@ -20,7 +20,7 @@ import io
 class LoadedModel():
 
     def __init__(self, model_path):
-        self.sess = tf.Session()
+        self.sess = tf.compat.v1.Session()
         self.model_path = model_path
         self.metagraph = tf.saved_model.loader.load(self.sess,
                                                     [tf.saved_model.tag_constants.SERVING], self.model_path)

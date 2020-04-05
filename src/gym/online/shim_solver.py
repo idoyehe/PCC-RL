@@ -30,7 +30,7 @@ parentdir = os.path.dirname(currentdir)
 grandparentdir = os.path.dirname(parentdir)
 sys.path.insert(0,parentdir) 
 sys.path.insert(0,grandparentdir) 
-from common.simple_arg_parse import arg_or_default
+from src.common.simple_arg_parse import arg_or_default
 
 arch_str = arg_or_default("--arch", default="32,16")
 if arch_str == "":
