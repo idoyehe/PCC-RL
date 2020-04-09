@@ -23,8 +23,8 @@ grandparentdir = os.path.dirname(parentdir)
 sys.path.insert(0, parentdir)
 sys.path.insert(0, grandparentdir)
 
-from src.common import sender_obs
-from src.common.simple_arg_parse import arg_or_default
+from common import sender_obs
+from common.simple_arg_parse import arg_or_default
 
 from loaded_agent import LoadedModelAgent
 

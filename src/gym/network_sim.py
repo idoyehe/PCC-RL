@@ -38,7 +38,7 @@ MIN_RATE = 40
 
 REWARD_SCALE = 0.001
 
-MAX_STEPS = 400
+MAX_EPISODE_STEPS = 400
 
 EVENT_TYPE_SEND = 'S'
 EVENT_TYPE_ACK = 'A'
@@ -389,7 +389,7 @@ class SimulatedNetworkEnv(gym.Env):
         self.run_dur = None
         self.run_period = 0.1
         self.steps_taken = 0
-        self.max_steps = MAX_STEPS
+        self.max_steps = MAX_EPISODE_STEPS
         self.debug_thpt_changes = False
         self.last_thpt = None
         self.last_rate = None
@@ -426,7 +426,7 @@ class SimulatedNetworkEnv(gym.Env):
     def step(self, actions):
         # print("Actions: %s" % str(actions))
         # print(actions)
-        for i in range(0, 1):  # len(actions)):
+        for i in range(0, 1):  # len(senders)):
             # print("Updating rate for sender %d" % i)
             action = actions
             self.senders[i].apply_rate_delta(action[0])
