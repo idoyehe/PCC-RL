@@ -26,7 +26,7 @@ import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-from src.common.simple_arg_parse import arg_or_default
+from common.simple_arg_parse import arg_or_default
 
 arch_str = arg_or_default("--arch", default="32,16")
 if arch_str == "":
@@ -59,7 +59,7 @@ for i in range(0, 6):
     # with model.graph.as_default():
     #     saver = tf.compat.v1.train.Saver()
     #     saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
-    model.learn(total_timesteps=(1600 * 410))
+    model.learn(total_timesteps=(8192 * 100))
 
 ##
 #   Save the model to the location specified below.

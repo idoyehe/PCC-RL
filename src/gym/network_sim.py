@@ -27,8 +27,8 @@ import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-from src.common import sender_obs, config
-from src.common.simple_arg_parse import arg_or_default
+from common import sender_obs, config
+from common.simple_arg_parse import arg_or_default
 
 MAX_CWND = 5000
 MIN_CWND = 4
