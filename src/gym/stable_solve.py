@@ -55,11 +55,11 @@ class MyMlpPolicy(FeedForwardPolicy):
 
 model = PPO1(MyMlpPolicy, env, verbose=1, schedule='constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
 
-for i in range(0, 6):
+# for i in range(0, 6):
     # with model.graph.as_default():
     #     saver = tf.compat.v1.train.Saver()
     #     saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
-    model.learn(total_timesteps=(8192 * 100))
+model.learn(total_timesteps=(8192 * 1024))
 
 ##
 #   Save the model to the location specified below.

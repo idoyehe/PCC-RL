@@ -38,7 +38,7 @@ MIN_RATE = 40
 
 REWARD_SCALE = 0.001
 
-MAX_EPISODE_STEPS = 400
+MAX_EPISODE_STEPS = 512
 
 EVENT_TYPE_SEND = 'S'
 EVENT_TYPE_ACK = 'A'
@@ -495,7 +495,7 @@ class SimulatedNetworkEnv(gym.Env):
         self.net = Network(self.senders, self.links)
         self.episodes_run += 1
         if self.episodes_run > 0 and self.episodes_run % 100 == 0:
-            self.dump_events_to_file("pcc_env_log_run_%d.json" % self.episodes_run)
+            self.dump_events_to_file("trainingOutput/pcc_env_log_run_%d.json" % self.episodes_run)
         self.event_record = {"Events": []}
         self.net.run_for_dur(self.run_dur)
         self.net.run_for_dur(self.run_dur)
