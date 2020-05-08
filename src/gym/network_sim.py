@@ -23,12 +23,12 @@ import json
 import os
 import sys
 import inspect
+from common import sender_obs, config
+from common.simple_arg_parse import arg_or_default
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-from common import sender_obs, config
-from common.simple_arg_parse import arg_or_default
 
 MAX_CWND = 5000
 MIN_CWND = 4
@@ -54,7 +54,7 @@ MAX_LATENCY_NOISE = 1.1
 USE_CWND = False
 
 
-class Link():
+class Link:
 
     def __init__(self, bandwidth, delay, queue_size, loss_rate):
         self.bw = float(bandwidth)
@@ -71,7 +71,7 @@ class Link():
         return self.delay + self.get_cur_queue_delay(event_time)
 
     def packet_enters_link(self, event_time):
-        if (random.random() < self.loss_rate):  # random loss
+        if random.random() < self.loss_rate:  # random loss
             # print("\tRandom Drop!")
             return False
         self.queue_delay = self.get_cur_queue_delay(event_time)
@@ -98,7 +98,7 @@ class Link():
         self.queue_delay_update_time = 0.0
 
 
-class Network():
+class Network:
 
     def __init__(self, senders, links):
         self.q = []
@@ -208,7 +208,7 @@ class Network():
         return reward * REWARD_SCALE
 
 
-class Sender():
+class Sender:
 
     def __init__(self, rate, path, dest, features, cwnd=25, history_len=3):
         self.id = Sender._get_next_id()
@@ -367,9 +367,14 @@ class SimulatedNetworkEnv(gym.Env):
     def __init__(self,
                  history_len=arg_or_default("--history-len", default=3),
                  features=arg_or_default("--input-features",
-                                         default="sent latency inflation,"
-                                                 + "latency ratio,"
-                                                 + "send ratio")):
+                                         default=
+                                         "sent latency inflation,"
+                                         + "ack latency inflation,"
+                                         # + "latency ratio,"
+                                         + "send ratio,"
+                                         + "recv rate,"
+                                         + "loss ratio"
+                                         )):
         self.viewer = None
         self.rand = None
 
@@ -384,8 +389,9 @@ class SimulatedNetworkEnv(gym.Env):
 
         self.links = None
         self.senders = None
+        self.net = None
+        self._testing = False
         self.create_new_links_and_senders()  # creating network topology
-        self.net = Network(self.senders, self.links)
         self.run_dur = None
         self.run_period = 0.1
         self.steps_taken = 0
@@ -412,6 +418,9 @@ class SimulatedNetworkEnv(gym.Env):
 
         self.event_record = {"Events": []}
         self.episodes_run = -1
+
+    def testing(self, testing):
+        self._testing = testing
 
     def seed(self, seed=None):
         self.rand, seed = seeding.np_random(seed)
@@ -461,7 +470,7 @@ class SimulatedNetworkEnv(gym.Env):
         should_stop = False
 
         self.reward_sum += reward
-        return sender_obs, reward, (self.steps_taken >= self.max_steps or should_stop), {}
+        return sender_obs, reward, ((not self._testing and self.steps_taken >= self.max_steps) or should_stop), {}
 
     def print_debug(self):
         print("---Link Debug---")
@@ -472,14 +481,18 @@ class SimulatedNetworkEnv(gym.Env):
             sender.print_debug()
 
     def create_new_links_and_senders(self):
+        self.net = None
         bw = random.uniform(self.min_bw, self.max_bw)
         lat = random.uniform(self.min_lat, self.max_lat)
         queue = 1 + int(np.exp(random.uniform(self.min_queue, self.max_queue)))
         loss = random.uniform(self.min_loss, self.max_loss)
-        # bw    = 200
-        # lat   = 0.03
-        # queue = 5
-        # loss  = 0.00
+
+        if self._testing:
+            bw = (self.max_bw + self.min_bw) / 2
+            lat = (self.max_lat + self.min_lat) / 2
+            queue = 1 + (self.max_queue + self.min_queue) / 2
+            loss = (self.max_loss + self.min_loss) / 2
+
         self.links = [Link(bw, lat, queue, loss), Link(bw, lat, queue, loss)]
         # self.senders = [Sender(0.3 * bw, [self.links[0], self.links[1]], 0, self.history_len)]
         # self.senders = [Sender(random.uniform(0.2, 0.7) * bw, [self.links[0], self.links[1]], 0, self.history_len)]
@@ -488,14 +501,15 @@ class SimulatedNetworkEnv(gym.Env):
             Sender(sender_rate, [self.links[0], self.links[1]], 0, self.features, history_len=self.history_len)]
         self.run_dur = 3 * lat
 
+        self.net = Network(self.senders, self.links)
+
     def reset(self):
         self.steps_taken = 0
         self.net.reset()
         self.create_new_links_and_senders()
-        self.net = Network(self.senders, self.links)
         self.episodes_run += 1
-        if self.episodes_run > 0 and self.episodes_run % 100 == 0:
-            self.dump_events_to_file("trainingOutput/pcc_env_log_run_%d.json" % self.episodes_run)
+        if self._testing:  # or (self.episodes_run > 0 and self.episodes_run % 100 == 0):
+            self.dump_events_to_file("trainingOutput/pcc_env_log_run_512_5_features_2.json")
         self.event_record = {"Events": []}
         self.net.run_for_dur(self.run_dur)
         self.net.run_for_dur(self.run_dur)

@@ -45,16 +45,16 @@ rew_axis.plot(time_data, rew_data)
 rew_axis.set_ylabel("Reward")
 
 send_axis.plot(time_data, send_data)
-send_axis.set_ylabel("Send Rate")
+send_axis.set_ylabel("Send Rate [bps]")
 
 thpt_axis.plot(time_data, thpt_data)
-thpt_axis.set_ylabel("Throughput")
+thpt_axis.set_ylabel("Throughput [bps]")
 
 latency_axis.plot(time_data, latency_data)
-latency_axis.set_ylabel("Latency")
+latency_axis.set_ylabel("RTT [Seconds]")
 
 loss_axis.plot(time_data, loss_data)
-loss_axis.set_ylabel("Loss Rate")
+loss_axis.set_ylabel("Loss Rate [%]")
 loss_axis.set_xlabel("Monitor Interval")
 
 fig.suptitle("Summary Graph for %s" % sys.argv[1])

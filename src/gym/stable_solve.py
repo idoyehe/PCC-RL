@@ -28,7 +28,8 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 from common.simple_arg_parse import arg_or_default
 
-arch_str = arg_or_default("--arch", default="32,16")
+# arch_str = arg_or_default("--arch", default="32,16")
+arch_str = arg_or_default("--arch", default="64,32")
 if arch_str == "":
     arch = []
 else:
@@ -56,41 +57,49 @@ class MyMlpPolicy(FeedForwardPolicy):
 model = PPO1(MyMlpPolicy, env, verbose=1, schedule='constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
 
 # for i in range(0, 6):
-    # with model.graph.as_default():
-    #     saver = tf.compat.v1.train.Saver()
-    #     saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
-model.learn(total_timesteps=(8192 * 1024))
+# with model.graph.as_default():
+#     saver = tf.compat.v1.train.Saver()
+#     saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
+model.learn(total_timesteps=(100 * 8192))
 
-##
-#   Save the model to the location specified below.
-##
-default_export_dir = parentdir + "/tmp/pcc_saved_models/model_A/"
+env.testing(True)
+obs = env.reset()
+for _ in range(10 * 8192):
+    action, _states = model.predict(obs)
+    obs, reward, done, info = env.step(action)
 
-rmtree(parentdir + '/tmp', ignore_errors=True)
+env.reset()
+env.testing(False)
 
-export_dir = arg_or_default("--model-dir", default=default_export_dir)
-with model.graph.as_default():
-    pol = model.policy_pi  # act_model
-
-    obs_ph = pol.obs_ph
-    act = pol.deterministic_action
-    sampled_act = pol.action
-
-    obs_input = tf.compat.v1.saved_model.utils.build_tensor_info(obs_ph)
-    outputs_tensor_info = tf.saved_model.utils.build_tensor_info(act)
-    stochastic_act_tensor_info = tf.saved_model.utils.build_tensor_info(sampled_act)
-    signature = tf.compat.v1.saved_model.signature_def_utils.build_signature_def(
-        inputs={"ob": obs_input},
-        outputs={"act": outputs_tensor_info, "stochastic_act": stochastic_act_tensor_info},
-        method_name=tf.saved_model.PREDICT_METHOD_NAME)
-
-    # """
-    signature_map = {tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
-                         signature}
-
-    model_builder = tf.compat.v1.saved_model.builder.SavedModelBuilder(export_dir)
-    model_builder.add_meta_graph_and_variables(model.sess,
-                                               tags=[tf.saved_model.SERVING],
-                                               signature_def_map=signature_map,
-                                               clear_devices=True)
-    model_builder.save(as_text=True)
+#
+# # Save the model to the location specified below.
+#
+# default_export_dir = parentdir + "/tmp/pcc_saved_models/model_A/"
+#
+# rmtree(parentdir + '/tmp', ignore_errors=True)
+#
+# export_dir = arg_or_default("--model-dir", default=default_export_dir)
+# with model.graph.as_default():
+#     pol = model.policy_pi  # act_model
+#
+#     obs_ph = pol.obs_ph
+#     act = pol.deterministic_action
+#     sampled_act = pol.action
+#
+#     obs_input = tf.compat.v1.saved_model.utils.build_tensor_info(obs_ph)
+#     outputs_tensor_info = tf.saved_model.utils.build_tensor_info(act)
+#     stochastic_act_tensor_info = tf.saved_model.utils.build_tensor_info(sampled_act)
+#     signature = tf.compat.v1.saved_model.signature_def_utils.build_signature_def(
+#         inputs={"ob": obs_input},
+#         outputs={"act": outputs_tensor_info, "stochastic_act": stochastic_act_tensor_info},
+#         method_name=tf.saved_model.PREDICT_METHOD_NAME)
+#
+#     signature_map = {tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
+#                          signature}
+#
+#     model_builder = tf.compat.v1.saved_model.builder.SavedModelBuilder(export_dir)
+#     model_builder.add_meta_graph_and_variables(model.sess,
+#                                                tags=[tf.saved_model.SERVING],
+#                                                signature_def_map=signature_map,
+#                                                clear_devices=True)
+#     model_builder.save(as_text=True)
